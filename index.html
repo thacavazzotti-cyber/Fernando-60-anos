@@ -65,74 +65,7 @@ button:disabled{opacity:.45}
 
 <div class="tela">
  <video id="camera" autoplay muted playsinline></video>
-
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fernando - 60 Anos</title>
-<style>
-*{box-sizing:border-box}
-body{
- margin:0;
- padding:12px;
- background:#130d25;
- color:white;
- text-align:center;
- font-family:Arial,sans-serif;
-}
-h2{margin:12px 0 4px;color:#ff74e9}
-p{margin:8px}
-.tela{
- position:relative;
- width:min(100%,390px);
- aspect-ratio:9/16;
- margin:12px auto;
- background:#000;
- border-radius:15px;
- overflow:hidden;
-}
-#camera,#moldura{
- position:absolute;
- inset:0;
- width:100%;
- height:100%;
-}
-#camera{object-fit:cover}
-#moldura{pointer-events:none}
-.espelho{transform:scaleX(-1)}
-button,a.botao{
- background:#a329ce;
- color:white;
- border:1px solid #fa81ff;
- border-radius:12px;
- padding:12px 14px;
- margin:5px;
- font-size:15px;
- cursor:pointer;
- text-decoration:none;
- display:inline-block;
-}
-button:disabled{opacity:.45}
-#fotoFinal,#videoFinal{
- display:none;
- width:min(100%,390px);
- margin:15px auto;
- border-radius:12px;
-}
-#salvarFoto,#salvarVideo{display:none}
-#status{font-size:14px;color:#bffbff}
-</style>
-</head>
-<body>
-
-<h2>🪩 Fernando - 60 Anos</h2>
-<p>Uma festa inesquecível!</p>
-
-<div class="tela">
- <video id="camera" autoplay muted playsinline></video>
-<img id="moldura" src="moldura.png.PNG">
+ <img id="moldura" src="moldura.png.PNG" alt="Moldura">
 </div>
 
 <button id="virar" onclick="virarCamera()">
