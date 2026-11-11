@@ -1,0 +1,362 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fernando - 60 Anos</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;
+ padding:12px;
+ background:#130d25;
+ color:white;
+ text-align:center;
+ font-family:Arial,sans-serif;
+}
+h2{margin:12px 0 4px;color:#ff74e9}
+p{margin:8px}
+.tela{
+ position:relative;
+ width:min(100%,390px);
+ aspect-ratio:9/16;
+ margin:12px auto;
+ background:#000;
+ border-radius:15px;
+ overflow:hidden;
+}
+#camera,#moldura{
+ position:absolute;
+ inset:0;
+ width:100%;
+ height:100%;
+}
+#camera{object-fit:cover}
+#moldura{pointer-events:none}
+.espelho{transform:scaleX(-1)}
+button,a.botao{
+ background:#a329ce;
+ color:white;
+ border:1px solid #fa81ff;
+ border-radius:12px;
+ padding:12px 14px;
+ margin:5px;
+ font-size:15px;
+ cursor:pointer;
+ text-decoration:none;
+ display:inline-block;
+}
+button:disabled{opacity:.45}
+#fotoFinal,#videoFinal{
+ display:none;
+ width:min(100%,390px);
+ margin:15px auto;
+ border-radius:12px;
+}
+#salvarFoto,#salvarVideo{display:none}
+#status{font-size:14px;color:#bffbff}
+</style>
+</head>
+<body>
+
+<h2>🪩 Fernando - 60 Anos</h2>
+<p>Uma festa inesquecível!</p>
+
+<div class="tela">
+ <video id="camera" autoplay muted playsinline></video>
+ <img id="moldura" src="moldura.png" alt="Moldura">
+</div>
+
+<button id="virar" onclick="virarCamera()">
+ 🔄 Virar câmera
+</button>
+
+<div>
+ <button id="fotoBtn" onclick="tirarFoto()">
+ 📸 Tirar foto
+ </button>
+ <button id="gravarBtn" onclick="iniciarVideo()">
+ 🎥 Gravar vídeo
+ </button>
+ <button id="pararBtn" onclick="pararVideo()" disabled>
+ ⏹ Parar
+ </button>
+</div>
+
+<p id="status">Preparando câmera...</p>
+
+<img id="fotoFinal" alt="Sua foto">
+<video id="videoFinal" controls playsinline></video>
+
+<div>
+ <a id="salvarFoto" class="botao">
+ 💾 Salvar foto
+ </a>
+ <a id="salvarVideo" class="botao">
+ 💾 Salvar vídeo
+ </a>
+</div>
+
+<script>
+const camera=document.getElementById("camera");
+const moldura=document.getElementById("moldura");
+const statusEl=document.getElementById("status");
+const virarBtn=document.getElementById("virar");
+const fotoBtn=document.getElementById("fotoBtn");
+const gravarBtn=document.getElementById("gravarBtn");
+const pararBtn=document.getElementById("pararBtn");
+
+let lado="user";
+let cameraStream=null;
+let audioStream=null;
+let recorder=null;
+let partes=[];
+let gravando=false;
+let animacao=null;
+let canvas=null;
+let ctx=null;
+let urlVideo=null;
+
+function aviso(texto){
+ statusEl.textContent=texto;
+}
+
+async function abrirCamera(){
+ try{
+  if(cameraStream){
+   cameraStream.getTracks().forEach(t=>t.stop());
+  }
+
+  cameraStream=await navigator.mediaDevices.getUserMedia({
+   video:{facingMode:{ideal:lado}},
+   audio:false
+  });
+
+  camera.srcObject=cameraStream;
+  camera.classList.toggle("espelho",lado==="user");
+  await camera.play();
+  aviso("Câmera pronta! 🪩");
+ }catch(e){
+  aviso("Permita o acesso à câmera.");
+ }
+}
+
+async function virarCamera(){
+ if(gravando)return;
+ lado=lado==="user"?"environment":"user";
+ await abrirCamera();
+}
+
+function prepararCanvas(){
+ canvas=document.createElement("canvas");
+ canvas.width=720;
+ canvas.height=1280;
+ ctx=canvas.getContext("2d");
+}
+
+function desenhar(){
+ if(!camera.videoWidth)return;
+
+ const w=canvas.width;
+ const h=canvas.height;
+ const vw=camera.videoWidth;
+ const vh=camera.videoHeight;
+ const escala=Math.max(w/vw,h/vh);
+ const sw=w/escala;
+ const sh=h/escala;
+
+ ctx.clearRect(0,0,w,h);
+ ctx.save();
+
+ if(lado==="user"){
+  ctx.translate(w,0);
+  ctx.scale(-1,1);
+ }
+
+ ctx.drawImage(
+  camera,
+  (vw-sw)/2,(vh-sh)/2,
+  sw,sh,0,0,w,h
+ );
+ ctx.restore();
+
+ if(moldura.complete&&moldura.naturalWidth){
+  ctx.drawImage(moldura,0,0,w,h);
+ }
+}
+
+function tirarFoto(){
+ if(gravando||!camera.videoWidth){
+  aviso("Aguarde a câmera ficar pronta.");
+  return;
+ }
+
+ prepararCanvas();
+ desenhar();
+
+ const imagem=canvas.toDataURL("image/png");
+ const resultado=document.getElementById("fotoFinal");
+ const salvar=document.getElementById("salvarFoto");
+
+ resultado.src=imagem;
+ resultado.style.display="block";
+ salvar.href=imagem;
+ salvar.download="fernando-60-anos.png";
+ salvar.style.display="inline-block";
+
+ aviso("Foto pronta! 💜");
+}
+
+function atualizarQuadro(){
+ desenhar();
+ animacao=requestAnimationFrame(atualizarQuadro);
+}
+
+function formatoVideo(){
+ const formatos=[
+  "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+  "video/mp4",
+  "video/webm;codecs=vp8,opus",
+  "video/webm"
+ ];
+ return formatos.find(
+  f=>MediaRecorder.isTypeSupported(f)
+ )||"";
+}
+
+async function iniciarVideo(){
+ if(gravando)return;
+
+ if(!camera.videoWidth){
+  aviso("Aguarde a câmera.");
+  return;
+ }
+
+ if(!window.MediaRecorder||
+    !HTMLCanvasElement.prototype.captureStream){
+  aviso("Gravação não suportada neste navegador.");
+  return;
+ }
+
+ try{
+  audioStream=await navigator.mediaDevices.getUserMedia({
+   audio:true,
+   video:false
+  });
+ }catch(e){
+  aviso("Autorize o microfone para gravar com áudio.");
+  return;
+ }
+
+ prepararCanvas();
+ atualizarQuadro();
+
+ let streamCanvas;
+
+ try{
+  streamCanvas=canvas.captureStream(30);
+ }catch(e){
+  limpar();
+  aviso("Não foi possível capturar o vídeo.");
+  return;
+ }
+
+ const combinado=new MediaStream([
+  ...streamCanvas.getVideoTracks(),
+  ...audioStream.getAudioTracks()
+ ]);
+
+ const formato=formatoVideo();
+
+ try{
+  recorder=new MediaRecorder(
+   combinado,
+   formato?{mimeType:formato}:undefined
+  );
+ }catch(e){
+  limpar();
+  combinado.getTracks().forEach(t=>t.stop());
+  aviso("Formato de vídeo incompatível.");
+  return;
+ }
+
+ partes=[];
+
+ recorder.ondataavailable=e=>{
+  if(e.data.size>0)partes.push(e.data);
+ };
+
+ recorder.onstop=()=>{
+  limpar();
+  combinado.getTracks().forEach(t=>t.stop());
+
+  const tipo=recorder.mimeType||"video/webm";
+  const blob=new Blob(partes,{type:tipo});
+
+  if(urlVideo)URL.revokeObjectURL(urlVideo);
+  urlVideo=URL.createObjectURL(blob);
+
+  const video=document.getElementById("videoFinal");
+  const salvar=document.getElementById("salvarVideo");
+
+  video.src=urlVideo;
+  video.style.display="block";
+
+  const extensao=tipo.includes("mp4")?"mp4":"webm";
+  salvar.href=urlVideo;
+  salvar.download="fernando-60-anos."+extensao;
+  salvar.style.display="inline-block";
+
+  gravando=false;
+  gravarBtn.disabled=false;
+  pararBtn.disabled=true;
+  virarBtn.disabled=false;
+  fotoBtn.disabled=false;
+
+  aviso("Vídeo pronto! Confira o áudio e salve. 💜");
+ };
+
+ recorder.onerror=()=>{
+  aviso("Erro durante a gravação.");
+  if(recorder.state!=="inactive")recorder.stop();
+ };
+
+ try{
+  recorder.start(250);
+  gravando=true;
+  gravarBtn.disabled=true;
+  pararBtn.disabled=false;
+  virarBtn.disabled=true;
+  fotoBtn.disabled=true;
+  aviso("🔴 Gravando vídeo com áudio...");
+ }catch(e){
+  limpar();
+  combinado.getTracks().forEach(t=>t.stop());
+  aviso("Não foi possível iniciar a gravação.");
+ }
+}
+
+function limpar(){
+ if(animacao!==null){
+  cancelAnimationFrame(animacao);
+  animacao=null;
+ }
+ if(audioStream){
+  audioStream.getTracks().forEach(t=>t.stop());
+  audioStream=null;
+ }
+}
+
+function pararVideo(){
+ if(recorder&&recorder.state==="recording"){
+  pararBtn.disabled=true;
+  recorder.stop();
+  aviso("Preparando seu vídeo...");
+ }
+}
+
+abrirCamera();
+</script>
+</body>
+</html>
